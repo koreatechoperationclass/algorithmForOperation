@@ -52,11 +52,15 @@ struct Process {
 
 // SPN 프로세스 함수 
 template <typename T>
-void spn_process(T* aa);
+void spn_process(T* origin_queue);
 
 //SRTN 프로세스 함수
 template <typename T>
 void srtn_process(T* origin_queue);
+
+//hrrn 프로세스 함수
+template <typename T>
+void hrrn_process(T* origin_queue);
 
 // 프로세스 비교 함수,  입력시간으로 정렬하는 함수
 struct comparison {
@@ -72,13 +76,22 @@ struct spn {
 	}
 };
 
+// hrrn 비교 함수
+struct hrrn {
+	bool operator()(Process t, Process u) {
+		double t_response_ratio = ((double)t.waiting_time + t.burst_time) / t.burst_time;
+		double u_response_ratio = ((double)u.waiting_time + u.burst_time) / u.burst_time;
+		return t_response_ratio < u_response_ratio;
+	}
+};
+
 // 단순히 que의 burst time 만 출력해주는 함수 (단순 테스트용 ) 
 template <typename T>
 void showing(T que) {
 	while (!que.empty()) {
 		Process p = que.front();
 		que.pop();
-		printf("프로세스 이름 : %s arrive time : %d Burst Time : %d , Waiting time : %d , Turnaround Time : %d , normalized time %lf, running time : %d \n", p.name.c_str(), p.arrival_time, p.burst_time, p.waiting_time, p.turnaround_time, p.normalized_time, p.running_time);
+		printf("프로세스 이름 : %s arrive time : %d Burst Time : %d , Waiting time : %d , Turnaround Time : %d , normalized time %.2lf, running time : %d \n", p.name.c_str(), p.arrival_time, p.burst_time, p.waiting_time, p.turnaround_time, p.normalized_time, p.running_time);
 	}
 }
 
@@ -97,7 +110,7 @@ int main() {
 
 	showing(que);
 
-	srtn_process(&que);			// 큐의 주소를 함수의 매개변수로 사용
+	hrrn_process(&que);			// 큐의 주소를 함수의 매개변수로 사용
 	
 	showing(que);
 
@@ -169,9 +182,10 @@ void spn_process(T* origin_queue) {
 
 
 
-// SRTN 프로세스 함수 여기서는 큐의 포인터를 입력받고 그 큐에 SRTN 프로세스 스케쥴링을 적용하여 대기열을 넣고 종료하는 함수
+// Strn 프로세스 함수 여기서는 큐의 포인터를 입력받고 그 큐에 hrrn 프로세스 스케쥴링을 적용하여 대기열을 넣고 종료하는 함수
 // 오리진 큐는 우선순위 큐가아닌 일반 적인 stl 큐를 사용
-// 메모리에 잔여 실행 시간이 더 적은 프로세스가 ready 상태가 되면 선점되는 것.
+// 비선점 형태이며 spn의 변형 방법이다. 프로세스의 대기 시간을 고려해서 기회를 제공함
+// response ratio= (WT+BT) /BT (응답률)이 높은 프로세스를 우선으로 고려함.
 template <typename T>
 void srtn_process(T* origin_queue) {
 	priority_queue<Process, vector<Process>, spn> memory_queue;		// 메모리 큐
@@ -223,6 +237,85 @@ void srtn_process(T* origin_queue) {
 				}
 			}
 			
+			if (processor.remain_time > 0) {
+				processor.running_time++;
+				processor.remain_time--;
+			}
+			if (processor.remain_time == 0) {
+				processor.turnaround_time = t - processor.arrival_time + 1;
+				processor.waiting_time = processor.turnaround_time - processor.burst_time;
+				processor.normalized_time = (double)processor.turnaround_time / processor.burst_time;
+				//				printf("%d 초에 프로세서 %s가 origin_queue에 들어왔습니다.\n ", t, processor.name.c_str());
+				origin_queue->push(processor);
+				processor.setNull(true);
+			}
+
+		}
+
+	}
+}
+
+// HRRN 프로세스 함수 여기서는 큐의 포인터를 입력받고 그 큐에 HRRN 프로세스 스케쥴링을 적용하여 대기열을 넣고 종료하는 함수
+// 이 함수만 개발하면 됨.
+// 오리진 큐는 우선순위 큐가아닌 일반 적인 stl 큐를 사용
+template <typename T>
+void hrrn_process(T* origin_queue) {
+	priority_queue<Process, vector<Process>, spn> memory_queue;		// 메모리 큐
+	priority_queue<Process, vector<Process>, comparison> tmp;
+	priority_queue<Process, vector<Process>, hrrn> hrrn_queue;		// hrrn 적용하는 큐.
+	Process processor;										// 프로세서 등록
+	Process tmp_process;
+
+	// 원래 큐를 입력받아서 정렬시키면서 temp 우선순위 큐로 입력시킨다.
+	while (!origin_queue->empty()) {
+		tmp.push(origin_queue->front());
+		origin_queue->pop();
+	}
+
+	//	while (!tmp.empty()) {
+	//		cout << "임시 큐"<<tmp.top().arrival_time << endl;
+	//		tmp.pop();
+	//	}
+	// time은 t변수 20초까지 카운트 한다.
+	for (int t = 0; t <= 20; t++) {
+		// tmp 큐에서 메모리 큐로 넣기
+		int tmp_size = tmp.size();		// tmp 큐의 사이즈
+		for (int i = 0; i < tmp_size; i++) {
+			int arr_time = (int)tmp.top().arrival_time;
+			if (arr_time == t) {
+				tmp_process = tmp.top();
+				memory_queue.push(tmp_process);		// 메모리 큐는 넣으면 burst time이 작은 것 기준으로 자동 정렬이 된다.
+				tmp.pop();
+				//				printf("%d 초에 메모리 큐에 %s가 들어왔습니다. \n", t,tmp_process.name.c_str());
+			}
+		}
+
+		// processor가 등록이 안되어있을 때는 메모리의 앞에 있는 것을 빼서 등록시킨다.
+		if (processor.isNull()) {
+
+			// 메모리 큐에 있는 것을 hrrn 큐로(hrrn 프로세스 기준을 적용해 다시 정렬시킨다.)
+			while (!memory_queue.empty()) {
+				Process temp_process = memory_queue.top();
+				temp_process.waiting_time = t - temp_process.arrival_time;
+				hrrn_queue.push(temp_process);
+				memory_queue.pop();
+			}
+
+			// hrrn큐에서 프로세서로 등록시킨다.
+			if (!hrrn_queue.empty()) {
+				processor = hrrn_queue.top();
+				hrrn_queue.pop();
+				processor.running_time = 0;			// 초기화 시킨다.
+				printf("%d 초에 프로세서에 %s가 들어왔습니다. \n", t, processor.name.c_str());			// 문제... 왜 1초씩 땡겨서 들어가지는가?
+			}
+
+			// 남아있는 hrrn 큐를 다시 메모리 큐로 넣는다.
+			while (!hrrn_queue.empty()) {
+				memory_queue.push(hrrn_queue.top());
+				hrrn_queue.pop();
+			}
+		}
+		if (!processor.isNull()) {
 			if (processor.remain_time > 0) {
 				processor.running_time++;
 				processor.remain_time--;
