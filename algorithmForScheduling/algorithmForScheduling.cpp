@@ -86,8 +86,8 @@ int main() {
 	que.push(Process{ "p1",0,3,0,0,0,0,0 });
 	//printf("?%s\n", p.name.c_str());
 	//printf("?프로세스 이름 : %s arrive time : %d Burst Time : %d , Waiting time : %d , Turnaround Time : %d , normalized time %lf, running time : %d \n", p.name.c_str(), p.arrival_time, p.burst_time, p.waiting_time, p.turnaround_time, p.normalized_time, p.running_time);
-	que.push(Process{ "p2",1,7,0,0,0,0,0 });
-	que.push(Process{ "p3",3,2,0,0,0,0,0 });
+	que.push(Process{ "p2",1,8,0,0,0,0,0 });
+	que.push(Process{ "p3",4,2,0,0,0,0,0 });
 	que.push(Process{ "p4",5,5,0,0,0,0,0 });
 	que.push(Process{ "p5",6,3,0,0,0,0,0 });
 
@@ -121,7 +121,7 @@ void spn_process(T* origin_queue) {
 //		tmp.pop();
 //	}
 	// time은 t변수 20초까지 카운트 한다.
-	for (int t = 0; t <= 20; t++) {
+	for (int t = 0; t <= 25; t++) {
 		// tmp 큐에서 메모리 큐로 넣기
 		int tmp_size = tmp.size();		// tmp 큐의 사이즈
 		for (int i = 0; i < tmp_size; i++) {
@@ -130,30 +130,34 @@ void spn_process(T* origin_queue) {
 				tmp_process = tmp.top();
 				memory_queue.push(tmp_process);		// 메모리 큐는 넣으면 burst time이 작은 것 기준으로 자동 정렬이 된다.
 				tmp.pop();
+//				printf("%d 초에 메모리 큐에 %s가 들어왔습니다. \n", t,tmp_process.name.c_str());
 			}
 		}
 
 		// processor가 등록이 안되어있을 때는 메모리의 앞에 있는 것을 빼서 등록시킨다.
 		if (processor.isNull()) {
 			// 메모리큐에서 프로세서로 등록시킨다.
-			processor = memory_queue.top();
-			memory_queue.pop();
-			processor.running_time = 0;			// 초기화 시킨다.
+			if (!memory_queue.empty()) {
+				processor = memory_queue.top();
+				memory_queue.pop();
+				processor.running_time = 0;			// 초기화 시킨다.
+				printf("%d 초에 프로세서에 %s가 들어왔습니다. \n", t, processor.name.c_str());			// 문제... 왜 1초씩 땡겨서 들어가지는가?
+			}
 		}
-		
 		if (!processor.isNull()) {
 			if (processor.remain_time > 0) {
 				processor.running_time++;
 				processor.remain_time--;
 			}
-			else {
-				processor.turnaround_time = t - processor.arrival_time;
+			if (processor.remain_time == 0) {
+				processor.turnaround_time = t - processor.arrival_time + 1;
 				processor.waiting_time = processor.turnaround_time - processor.burst_time;
-				processor.normalized_time = processor.turnaround_time / processor.normalized_time;
+				processor.normalized_time = (double)processor.turnaround_time / processor.burst_time;
+//				printf("%d 초에 프로세서 %s가 origin_queue에 들어왔습니다.\n ", t, processor.name.c_str());
 				origin_queue->push(processor);
-				printf("%d , %d", &processor);
 				processor.setNull(true);
 			}
+			
 		}
 		
 	}
