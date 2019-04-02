@@ -22,6 +22,7 @@ struct Process {
 	double normalized_time;			// 정규화 시간
 	int running_time ;			// 돌린시간
 	int remain_time; 				// 실행하기에 남은 시간.
+	int process_arrival_time;		// 프로세서에 들어온 시간.
 	Process() :name("null") {};
 	Process(string aname, int aarrival_time, int aburst_time, int awaiting_time, int aturnaround_time, double anormalized_time, int arunning_time, int aremain_time){
 		name = aname;
@@ -52,20 +53,27 @@ struct Process {
 
 // SPN 프로세스 함수 
 template <typename T>
-void spn_process(T* origin_queue);
+int spn_process(T* origin_queue);
 
 //SRTN 프로세스 함수
 template <typename T>
-void srtn_process(T* origin_queue);
+int srtn_process(T* origin_queue);
 
 //hrrn 프로세스 함수
 template <typename T>
-void hrrn_process(T* origin_queue);
+int hrrn_process(T* origin_queue);
 
 // 프로세스 비교 함수,  입력시간으로 정렬하는 함수
 struct comparison {
 	bool operator()(Process t, Process u) {
 		return t.arrival_time > u.arrival_time;
+	}
+};
+
+// srtn 비교함수
+struct srtn_comparison {
+	bool operator()(Process t, Process u) {
+		return t.remain_time > u.remain_time;
 	}
 };
 
@@ -105,7 +113,7 @@ int main() {
 	showing(que);
 
 	printf("----------------- 수행 결과 -------------\n");
-	hrrn_process(&que);			// 큐의 주소를 함수의 매개변수로 사용
+	printf("총 실행시간 : %d\n", hrrn_process(&que));			// 큐의 주소를 함수의 매개변수로 사용
 	
 	showing(que);
 
@@ -116,13 +124,14 @@ int main() {
 // 이 함수만 개발하면 됨.
 // 오리진 큐는 우선순위 큐가아닌 일반 적인 stl 큐를 사용
 template <typename T>
-void spn_process(T* origin_queue) {
+int spn_process(T* origin_queue) {
 	priority_queue<Process, vector<Process>, spn> memory_queue;		// 메모리 큐
 	priority_queue<Process, vector<Process>, comparison> tmp;
 	Process processor;										// 프로세서 등록
 	Process tmp_process;
 	int time = 0;
 	int time_burst_sum = 0;
+	int total_time = 0;					// 전체 돌아간 총 시간.
 
 	// 원래 큐를 입력받아서 정렬시키면서 temp 우선순위 큐로 입력시킨다.
 	while (!origin_queue->empty()) {
@@ -157,6 +166,7 @@ void spn_process(T* origin_queue) {
 				processor = memory_queue.top();
 				memory_queue.pop();
 				processor.running_time = 0;			// 초기화 시킨다.
+				processor.process_arrival_time = t;		// 프로세서에 들어온 시간 기록.
 				//printf("%d 초에 프로세서에 %s가 들어왔습니다. \n", t, processor.name.c_str());			// 문제... 왜 1초씩 땡겨서 들어가지는가?
 			}
 		}
@@ -172,11 +182,15 @@ void spn_process(T* origin_queue) {
 //				printf("%d 초에 프로세서 %s가 origin_queue에 들어왔습니다.\n ", t, processor.name.c_str());
 				origin_queue->push(processor);
 				processor.setNull(true);
+				if (t > total_time) {					// 전체 총 돌린 시간이 현재 시간보다 적으면 총 돌린 시간은 지금 시간으로 
+					total_time = t;
+				}
 			}
 			
 		}
 		
 	}
+	return total_time + 1;
 }
 
 // Strn 프로세스 함수 여기서는 큐의 포인터를 입력받고 그 큐에 hrrn 프로세스 스케쥴링을 적용하여 대기열을 넣고 종료하는 함수
@@ -184,13 +198,14 @@ void spn_process(T* origin_queue) {
 // 비선점 형태이며 spn의 변형 방법이다. 프로세스의 대기 시간을 고려해서 기회를 제공함
 // response ratio= (WT+BT) /BT (응답률)이 높은 프로세스를 우선으로 고려함.
 template <typename T>
-void srtn_process(T* origin_queue) {
-	priority_queue<Process, vector<Process>, spn> memory_queue;		// 메모리 큐
+int srtn_process(T* origin_queue) {
+	priority_queue<Process, vector<Process>, srtn_comparison> memory_queue;		// 메모리 큐
 	priority_queue<Process, vector<Process>, comparison> tmp;
 	Process processor;										// 프로세서 등록
 	Process tmp_process;
 	int time = 0;
 	int time_burst_sum = 0;
+	int total_time = 0;					// 전체 돌아간 총 시간.
 
 	// 원래 큐를 입력받아서 정렬시키면서 temp 우선순위 큐로 입력시킨다.
 	while (!origin_queue->empty()) {
@@ -226,6 +241,7 @@ void srtn_process(T* origin_queue) {
 				processor = memory_queue.top();
 				memory_queue.pop();
 				processor.running_time = 0;			// 초기화 시킨다.
+				processor.process_arrival_time = t;		// 프로세서에 들어온 시간 기록.
 				//printf("%d 초에 프로세서에 %s가 들어왔습니다. \n", t, processor.name.c_str());			// 문제... 왜 1초씩 땡겨서 들어가지는가?
 			}
 		}
@@ -239,6 +255,7 @@ void srtn_process(T* origin_queue) {
 					origin_queue->push(processor);
 					//printf("%d초에 프로세스 %s가 메모리 큐에 있는 프로세서 %s와 교환하였습니다.", t, processor.name.c_str(), temp_process.name.c_str());
 					processor = temp_process;
+					processor.process_arrival_time = t;		// 프로세서에 들어온 시간 기록 (체인지 된 시간)
 				}
 			}
 			
@@ -252,19 +269,23 @@ void srtn_process(T* origin_queue) {
 				processor.normalized_time = (double)processor.turnaround_time / processor.burst_time;
 				//				printf("%d 초에 프로세서 %s가 origin_queue에 들어왔습니다.\n ", t, processor.name.c_str());
 				origin_queue->push(processor);
+				if (t > total_time) {					// 전체 총 돌린 시간이 현재 시간보다 적으면 총 돌린 시간은 지금 시간으로 
+					total_time = t;
+				}
 				processor.setNull(true);
 			}
 
 		}
-
 	}
+
+	return total_time + 1;
 }
 
 // HRRN 프로세스 함수 여기서는 큐의 포인터를 입력받고 그 큐에 HRRN 프로세스 스케쥴링을 적용하여 대기열을 넣고 종료하는 함수
 // 이 함수만 개발하면 됨.
 // 오리진 큐는 우선순위 큐가아닌 일반 적인 stl 큐를 사용
 template <typename T>
-void hrrn_process(T* origin_queue) {
+int hrrn_process(T* origin_queue) {
 	priority_queue<Process, vector<Process>, spn> memory_queue;		// 메모리 큐
 	priority_queue<Process, vector<Process>, comparison> tmp;
 	priority_queue<Process, vector<Process>, hrrn> hrrn_queue;		// hrrn 적용하는 큐.
@@ -272,6 +293,7 @@ void hrrn_process(T* origin_queue) {
 	Process tmp_process;
 	int time = 0;
 	int time_burst_sum = 0;
+	int total_time = 0;					// 전체 돌아간 총 시간.
 
 	// 원래 큐를 입력받아서 정렬시키면서 temp 우선순위 큐로 입력시킨다.
 	while (!origin_queue->empty()) {
@@ -319,6 +341,7 @@ void hrrn_process(T* origin_queue) {
 				processor = hrrn_queue.top();
 				hrrn_queue.pop();
 				processor.running_time = 0;			// 초기화 시킨다.
+				processor.process_arrival_time = t;		// 프로세서에 들어온 시간 기록.
 				//printf("%d 초에 프로세서에 %s가 들어왔습니다. \n", t, processor.name.c_str());			// 문제... 왜 1초씩 땡겨서 들어가지는가?
 			}
 
@@ -340,11 +363,15 @@ void hrrn_process(T* origin_queue) {
 				//				printf("%d 초에 프로세서 %s가 origin_queue에 들어왔습니다.\n ", t, processor.name.c_str());
 				origin_queue->push(processor);
 				processor.setNull(true);
+				if (t > total_time) {					// 전체 총 돌린 시간이 현재 시간보다 적으면 총 돌린 시간은 지금 시간으로 
+					total_time = t;
+				}
 			}
 
 		}
 
 	}
+	return total_time + 1;
 }
 
 // 단순히 que의 burst time 만 출력해주는 함수 (단순 테스트용 ) 
@@ -353,6 +380,6 @@ void showing(T que) {
 	while (!que.empty()) {
 		Process p = que.front();
 		que.pop();
-		printf("프로세스 이름 : %s arrive time : %d Burst Time : %d , Waiting time : %d , Turnaround Time : %d , normalized time %.2lf, running time : %d \n", p.name.c_str(), p.arrival_time, p.burst_time, p.waiting_time, p.turnaround_time, p.normalized_time, p.running_time);
+		printf("프로세스 이름 : %s arrive time : %d Burst Time : %d , Waiting time : %d , Turnaround Time : %d , normalized time %.2lf, running time : %d 프로세서 들어온 시간 : %d \n", p.name.c_str(), p.arrival_time, p.burst_time, p.waiting_time, p.turnaround_time, p.normalized_time, p.running_time, p.process_arrival_time);
 	}
 }
