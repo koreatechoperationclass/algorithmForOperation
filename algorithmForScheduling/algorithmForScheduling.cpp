@@ -14,6 +14,8 @@ SPN 구현 시도
 using namespace std;
 // 프로세스 구조체
 struct Process {
+	static int count;				// 프로세스가 들어온 개수 카운터
+	int number;						// 프로세스 기본키
 	string name;					// 프로세스의 이름
 	int arrival_time;			// 메모리에 들어간 시간
 	int burst_time;				// 실행시간
@@ -33,6 +35,7 @@ struct Process {
 		normalized_time = anormalized_time;
 		running_time = arunning_time;
 		remain_time = burst_time;
+		number = Process::count++;
 	}
 
 	bool isNull() {
@@ -51,17 +54,19 @@ struct Process {
 	}
 };
 
+int Process::count = 0;			//프로세스 생성 전 정적 변수 static count 를 추가해서 프로세스를 추가한다. 
+
 // SPN 프로세스 함수 
 template <typename T>
-int spn_process(T* origin_queue);
+int spn_process(T* origin_queue, T* table_queue);
 
 //SRTN 프로세스 함수
 template <typename T>
-int srtn_process(T* origin_queue);
+int srtn_process(T* origin_queue, T* table_queue);
 
 //hrrn 프로세스 함수
 template <typename T>
-int hrrn_process(T* origin_queue);
+int hrrn_process(T* origin_queue, T* table_queue);
 
 // 프로세스 비교 함수,  입력시간으로 정렬하는 함수
 struct comparison {
@@ -93,14 +98,22 @@ struct hrrn {
 	}
 };
 
+// 키값으로 정렬하는 함수
+struct key {
+	bool operator()(Process t, Process u) {
+		return t.number > u.number;
+	}
+};
+
 // 단순히 que의 burst time 만 출력해주는 함수 (단순 테스트용 ) 
 template <typename T>
-void showing(T que);
+void showing(T que , T table_queue);
 
 int main() {
 	queue<Process> que;			// 가상의 입력의 큐
+	queue<Process> table_que;		// 테이블 출력을 위한 큐
 								//Process p{ "p1",0,2,3,4,5,6,7 };
-	Process p{"dd",1,2,3,4,5,6,7};
+	
 	//printf("?프로세스 이름 : %s arrive time : %d Burst Time : %d , Waiting time : %d , Turnaround Time : %d , normalized time %lf, running time : %d \n", p.name, p.arrival_time, p.burst_time, p.waiting_time, p.turnaround_time, p.normalized_time, p.running_time);	//
 	que.push(Process{ "p1",0,3,0,0,0,0,0 });
 	//printf("?%s\n", p.name.c_str());
@@ -110,12 +123,12 @@ int main() {
 	que.push(Process{ "p4",5,5,0,0,0,0,0 });
 	que.push(Process{ "p5",6,3,0,0,0,0,0 });
 
-	showing(que);
+	showing(que, table_que);
 
-	printf("----------------- 수행 결과 -------------\n");
-	printf("총 실행시간 : %d\n", hrrn_process(&que));			// 큐의 주소를 함수의 매개변수로 사용
+	printf("----------------- 그래프 출력 결과 -------------\n");
+	printf("총 실행시간 : %d\n", spn_process(&que, &table_que));			// 큐의 주소를 함수의 매개변수로 사용
 	
-	showing(que);
+	showing(que, table_que);
 
 	return 0;
 }
@@ -124,9 +137,10 @@ int main() {
 // 이 함수만 개발하면 됨.
 // 오리진 큐는 우선순위 큐가아닌 일반 적인 stl 큐를 사용
 template <typename T>
-int spn_process(T* origin_queue) {
+int spn_process(T* origin_queue, T* table_queue) {						// table큐는 입력받은 순서대로 테이블을 보여줄 수 있는 큐
 	priority_queue<Process, vector<Process>, spn> memory_queue;		// 메모리 큐
 	priority_queue<Process, vector<Process>, comparison> tmp;
+	priority_queue<Process, vector<Process>, key> table_queue_tmp;	// 테이블 큐에 넣기 위한 템프큐
 	Process processor;										// 프로세서 등록
 	Process tmp_process;
 	int time = 0;
@@ -181,6 +195,7 @@ int spn_process(T* origin_queue) {
 				processor.normalized_time = (double)processor.turnaround_time / processor.burst_time;
 //				printf("%d 초에 프로세서 %s가 origin_queue에 들어왔습니다.\n ", t, processor.name.c_str());
 				origin_queue->push(processor);
+				table_queue_tmp.push(processor);
 				processor.setNull(true);
 				if (t > total_time) {					// 전체 총 돌린 시간이 현재 시간보다 적으면 총 돌린 시간은 지금 시간으로 
 					total_time = t;
@@ -190,6 +205,11 @@ int spn_process(T* origin_queue) {
 		}
 		
 	}
+
+	while (!table_queue_tmp.empty()) {
+		table_queue->push(table_queue_tmp.top());
+		table_queue_tmp.pop();
+	}
 	return total_time + 1;
 }
 
@@ -198,9 +218,10 @@ int spn_process(T* origin_queue) {
 // 비선점 형태이며 spn의 변형 방법이다. 프로세스의 대기 시간을 고려해서 기회를 제공함
 // response ratio= (WT+BT) /BT (응답률)이 높은 프로세스를 우선으로 고려함.
 template <typename T>
-int srtn_process(T* origin_queue) {
+int srtn_process(T* origin_queue, T* table_queue) {
 	priority_queue<Process, vector<Process>, srtn_comparison> memory_queue;		// 메모리 큐
 	priority_queue<Process, vector<Process>, comparison> tmp;
+	priority_queue<Process, vector<Process>, key> table_queue_tmp;	// 테이블 큐에 넣기 위한 템프큐
 	Process processor;										// 프로세서 등록
 	Process tmp_process;
 	int time = 0;
@@ -269,6 +290,7 @@ int srtn_process(T* origin_queue) {
 				processor.normalized_time = (double)processor.turnaround_time / processor.burst_time;
 				//				printf("%d 초에 프로세서 %s가 origin_queue에 들어왔습니다.\n ", t, processor.name.c_str());
 				origin_queue->push(processor);
+				table_queue_tmp.push(processor);
 				if (t > total_time) {					// 전체 총 돌린 시간이 현재 시간보다 적으면 총 돌린 시간은 지금 시간으로 
 					total_time = t;
 				}
@@ -278,6 +300,11 @@ int srtn_process(T* origin_queue) {
 		}
 	}
 
+	while (!table_queue_tmp.empty()) {
+		table_queue->push(table_queue_tmp.top());
+		table_queue_tmp.pop();
+	}
+
 	return total_time + 1;
 }
 
@@ -285,10 +312,11 @@ int srtn_process(T* origin_queue) {
 // 이 함수만 개발하면 됨.
 // 오리진 큐는 우선순위 큐가아닌 일반 적인 stl 큐를 사용
 template <typename T>
-int hrrn_process(T* origin_queue) {
+int hrrn_process(T* origin_queue, T* table_queue) {
 	priority_queue<Process, vector<Process>, spn> memory_queue;		// 메모리 큐
 	priority_queue<Process, vector<Process>, comparison> tmp;
 	priority_queue<Process, vector<Process>, hrrn> hrrn_queue;		// hrrn 적용하는 큐.
+	priority_queue<Process, vector<Process>, key> table_queue_tmp;	// 테이블 큐에 넣기 위한 템프큐
 	Process processor;										// 프로세서 등록
 	Process tmp_process;
 	int time = 0;
@@ -362,6 +390,7 @@ int hrrn_process(T* origin_queue) {
 				processor.normalized_time = (double)processor.turnaround_time / processor.burst_time;
 				//				printf("%d 초에 프로세서 %s가 origin_queue에 들어왔습니다.\n ", t, processor.name.c_str());
 				origin_queue->push(processor);
+				table_queue_tmp.push(processor);
 				processor.setNull(true);
 				if (t > total_time) {					// 전체 총 돌린 시간이 현재 시간보다 적으면 총 돌린 시간은 지금 시간으로 
 					total_time = t;
@@ -371,15 +400,29 @@ int hrrn_process(T* origin_queue) {
 		}
 
 	}
+
+	while (!table_queue_tmp.empty()) {
+		table_queue->push(table_queue_tmp.top());
+		table_queue_tmp.pop();
+	}
 	return total_time + 1;
 }
 
 // 단순히 que의 burst time 만 출력해주는 함수 (단순 테스트용 ) 
 template <typename T>
-void showing(T que) {
+void showing(T que , T table_queue) {
 	while (!que.empty()) {
 		Process p = que.front();
 		que.pop();
 		printf("프로세스 이름 : %s arrive time : %d Burst Time : %d , Waiting time : %d , Turnaround Time : %d , normalized time %.2lf, running time : %d 프로세서 들어온 시간 : %d \n", p.name.c_str(), p.arrival_time, p.burst_time, p.waiting_time, p.turnaround_time, p.normalized_time, p.running_time, p.process_arrival_time);
+	}
+	if (!table_queue.empty()) {
+		printf("----------------테이블 출력 ----------------------\n");
+	}
+	
+	while (!table_queue.empty()) {
+		Process p = table_queue.front();
+		table_queue.pop();
+		printf("프로세스 키 : %d 프로세스 이름 : %s arrive time : %d Burst Time : %d , Waiting time : %d , Turnaround Time : %d , normalized time %.2lf, running time : %d 프로세서 들어온 시간 : %d \n", p.number,p.name.c_str(), p.arrival_time, p.burst_time, p.waiting_time, p.turnaround_time, p.normalized_time, p.running_time, p.process_arrival_time);
 	}
 }
