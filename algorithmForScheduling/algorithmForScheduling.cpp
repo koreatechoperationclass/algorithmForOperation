@@ -115,10 +115,10 @@ int main() {
 								//Process p{ "p1",0,2,3,4,5,6,7 };
 	
 	//printf("?프로세스 이름 : %s arrive time : %d Burst Time : %d , Waiting time : %d , Turnaround Time : %d , normalized time %lf, running time : %d \n", p.name, p.arrival_time, p.burst_time, p.waiting_time, p.turnaround_time, p.normalized_time, p.running_time);	//
-	que.push(Process{ "p1",0,3,0,0,0,0,0 });
+	que.push(Process{ "p1",2,4,0,0,0,0,0 });
 	//printf("?%s\n", p.name.c_str());
 	//printf("?프로세스 이름 : %s arrive time : %d Burst Time : %d , Waiting time : %d , Turnaround Time : %d , normalized time %lf, running time : %d \n", p.name.c_str(), p.arrival_time, p.burst_time, p.waiting_time, p.turnaround_time, p.normalized_time, p.running_time);
-	que.push(Process{ "p2",1,7,0,0,0,0,0 });
+	que.push(Process{ "p2",0,8,0,0,0,0,0 });
 	que.push(Process{ "p3",3,2,0,0,0,0,0 });
 	que.push(Process{ "p4",5,5,0,0,0,0,0 });
 	que.push(Process{ "p5",6,3,0,0,0,0,0 });
@@ -126,7 +126,7 @@ int main() {
 	showing(que, table_que);
 
 	printf("----------------- 그래프 출력 결과 -------------\n");
-	printf("총 실행시간 : %d\n", spn_process(&que, &table_que));			// 큐의 주소를 함수의 매개변수로 사용
+	printf("총 실행시간 : %d\n", srtn_process(&que, &table_que));			// 큐의 주소를 함수의 매개변수로 사용
 	
 	showing(que, table_que);
 
@@ -151,10 +151,16 @@ int spn_process(T* origin_queue, T* table_queue) {						// table큐는 입력받은 순
 	while (!origin_queue->empty()) {
 		Process temp = origin_queue->front();
 		tmp.push(temp);
-		if (time < (temp.arrival_time + time_burst_sum)) {
-			time_burst_sum += temp.burst_time;
-			time = temp.arrival_time + time_burst_sum;
-		}
+
+		int lastArrival_time = 0;
+		//2 4  0 8
+		if (lastArrival_time < temp.arrival_time)
+			lastArrival_time = temp.arrival_time;
+
+		time_burst_sum += temp.burst_time;
+
+		time = time_burst_sum + lastArrival_time;
+
 		origin_queue->pop();
 	}
 	//printf("time : %d\n", time);
@@ -232,10 +238,16 @@ int srtn_process(T* origin_queue, T* table_queue) {
 	while (!origin_queue->empty()) {
 		Process temp = origin_queue->front();
 		tmp.push(temp);
-		if (time < (temp.arrival_time + time_burst_sum)) {
-			time_burst_sum += temp.burst_time;
-			time = temp.arrival_time + time_burst_sum;
-		}
+
+		int lastArrival_time = 0;
+		//2 4  0 8
+		if (lastArrival_time < temp.arrival_time)
+			lastArrival_time = temp.arrival_time;
+
+		time_burst_sum += temp.burst_time;
+
+		time = time_burst_sum + lastArrival_time;
+
 		origin_queue->pop();
 	}
 	//printf("time : %d\n", time);
@@ -300,6 +312,7 @@ int srtn_process(T* origin_queue, T* table_queue) {
 		}
 	}
 
+	//테이블 큐 에 넣는 작업.
 	while (!table_queue_tmp.empty()) {
 		table_queue->push(table_queue_tmp.top());
 		table_queue_tmp.pop();
@@ -327,12 +340,17 @@ int hrrn_process(T* origin_queue, T* table_queue) {
 	while (!origin_queue->empty()) {
 		Process temp = origin_queue->front();
 		tmp.push(temp);
-		if (time < (temp.arrival_time + time_burst_sum)) {
-			time_burst_sum += temp.burst_time;
-			time = temp.arrival_time + time_burst_sum;
-		}
+		int lastArrival_time = 0;
+		//2 4  0 8
+		if (lastArrival_time < temp.arrival_time)
+			lastArrival_time = temp.arrival_time;
+
+		time_burst_sum += temp.burst_time;
+		time = time_burst_sum + lastArrival_time;
 		origin_queue->pop();
 	}
+
+
 	//printf("time : %d\n", time);
 
 	//	while (!tmp.empty()) {
