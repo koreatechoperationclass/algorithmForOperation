@@ -86,6 +86,9 @@ int dice_process(T* origin_queue, T* table_queue);
 template <typename T>
 int rr_process(T* origin_queue, T* table_queue, int quantum);
 
+template <typename T>
+int fcfs_process(T* origin_queue, T* table_queue);
+
 // 프로세스 비교 함수,  입력시간으로 정렬하는 함수
 struct comparison {
 	bool operator()(Process t, Process u) {
@@ -153,11 +156,94 @@ int main() {
 	showing(que, table_que);
 
 	printf("----------------- 그래프 출력 결과 -------------\n");
-	printf("총 실행시간 : %d\n", rr_process(&que, &table_que, 4));			// 큐의 주소를 함수의 매개변수로 사용
+	printf("총 실행시간 : %d\n", fcfs_process(&que, &table_que));			// 큐의 주소를 함수의 매개변수로 사용
 	
 	showing(que, table_que);
 
 	return 0;
+}
+
+template <typename T>
+int fcfs_process(T* origin_queue, T* table_queue) {
+	queue<Process> memory_queue;		// 메모리 큐
+	priority_queue<Process, vector<Process>, comparison> tmp;		// 총시간을 계산하기 위한 임시 저장 큐.( 어라이벌 타임으로 정렬이 된다.)
+	priority_queue<Process, vector<Process>, key> table_queue_tmp;	// 테이블 큐에 넣기 위한 템프큐
+	Process processor;										// 프로세서 등록
+	Process tmp_process;
+	int time = 0;
+	int time_burst_sum = 0;
+	int total_time = 0;					// 전체 돌아간 총 시간.
+
+	// 원래 큐를 입력받아서 정렬시키면서 temp 우선순위 큐로 입력시킨다.
+	while (!origin_queue->empty()) {
+		Process temp = origin_queue->front();
+		tmp.push(temp);
+
+		int lastArrival_time = 0;
+		//2 4  0 8
+		if (lastArrival_time < temp.arrival_time)
+			lastArrival_time = temp.arrival_time;
+
+		time_burst_sum += temp.burst_time;
+
+		time = time_burst_sum + lastArrival_time;
+
+		origin_queue->pop();
+	}
+
+	for (int t = 0; t <= time; t++) {
+		// tmp 큐에서 메모리 큐로 넣기
+		int tmp_size = tmp.size();		// tmp 큐의 사이즈
+		for (int i = 0; i < tmp_size; i++) {
+			int arr_time = (int)tmp.top().arrival_time;
+			if (arr_time == t) {
+				tmp_process = tmp.top();
+				memory_queue.push(tmp_process);		// 메모리 큐는 넣으면 burst time이 작은 것 기준으로 자동 정렬이 된다.
+				tmp.pop();
+				//				printf("%d 초에 메모리 큐에 %s가 들어왔습니다. \n", t,tmp_process.name.c_str());
+			}
+		}
+
+
+		// processor가 등록이 안되어있을 때는 메모리의 앞에 있는 것을 빼서 등록시킨다.
+		if (processor.isNull()) {
+			// 메모리큐에서 프로세서로 등록시킨다.
+			if (!memory_queue.empty()) {
+				processor = memory_queue.front();
+				memory_queue.pop();
+				processor.running_time = 0;			// 초기화 시킨다.
+				processor.process_arrival_time = t;		// 프로세서에 들어온 시간 기록.
+														//printf("%d 초에 프로세서에 %s가 들어왔습니다. \n", t, processor.name.c_str());			// 문제... 왜 1초씩 땡겨서 들어가지는가?
+			}
+		}
+		if (!processor.isNull()) {
+			if (processor.remain_time > 0) {
+				processor.running_time++;
+				processor.remain_time--;
+			}
+
+			if (processor.remain_time == 0) {
+				processor.turnaround_time = t - processor.arrival_time + 1;
+				processor.waiting_time = processor.turnaround_time - processor.burst_time;
+				processor.normalized_time = (double)processor.turnaround_time / processor.burst_time;
+				//				printf("%d 초에 프로세서 %s가 origin_queue에 들어왔습니다.\n ", t, processor.name.c_str());
+				origin_queue->push(processor);
+				table_queue_tmp.push(processor);
+				processor.setNull(true);
+				if (t > total_time) {					// 전체 총 돌린 시간이 현재 시간보다 적으면 총 돌린 시간은 지금 시간으로 
+					total_time = t;
+				}
+			}
+
+		}
+
+	}
+
+	while (!table_queue_tmp.empty()) {
+		table_queue->push(table_queue_tmp.top());
+		table_queue_tmp.pop();
+	}
+	return total_time + 1;
 }
 
 template <typename T>
