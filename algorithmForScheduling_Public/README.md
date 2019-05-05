@@ -17,8 +17,8 @@ algorithForSchduling.h를 include해서 사용
 
 --------------------------------
 # 프로세싱 함수 인터페이스
-origin_queue : 입력부에서 입력받은 큐 (나중에 간트 차트 자료구조를 입력받는 큐)
-table_queue : 테이블 출력을 받기위한 큐
+- origin_queue : 입력부에서 입력받은 큐 (나중에 간트 차트 자료구조를 입력받는 큐)
+- table_queue : 테이블 출력을 받기위한 큐
 1. int fcfs_process((stl queue) origin_queue , (stl queue) table_queue);
 
 2. int rr_process(origin_queue, table_queue);
@@ -28,7 +28,8 @@ table_queue : 테이블 출력을 받기위한 큐
 6. int dice_process(origin_queue, table_queue);
 
 각 함수의 출력 값은 **총 실행 시간**을 출력함
-origin_queue는 나중에 출력이 간트 차트의 값으로 출력받음.
+origin_queue는 나중에 출력이 간트 차트의 값으로 출력받음
 
+즉 UI 입력부에서 입력받은 큐를 origin_queue에 넣고, 빈 table_queue를 매개변수로 넣으면, 간트차트의 결과값은 origin_queue에 테이블의 결과값은 table_queue로 출력되어 저장됨.
 
 by 홍영주
