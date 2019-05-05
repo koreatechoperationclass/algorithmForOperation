@@ -198,7 +198,7 @@ int fcfs_process(T* origin_queue, T* table_queue) {
 			int arr_time = (int)tmp.top().arrival_time;
 			if (arr_time == t) {
 				tmp_process = tmp.top();
-				memory_queue.push(tmp_process);		// 메모리 큐는 넣으면 burst time이 작은 것 기준으로 자동 정렬이 된다.
+				memory_queue.push(tmp_process);		// 메모리 큐는 넣으면 arrival time이 작은 것 기준으로 자동 정렬이 된다.
 				tmp.pop();
 				//				printf("%d 초에 메모리 큐에 %s가 들어왔습니다. \n", t,tmp_process.name.c_str());
 			}
