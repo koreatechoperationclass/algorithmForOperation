@@ -159,8 +159,10 @@ int fcfs_process(T* origin_queue, T* table_queue) {
 
 		time_burst_sum += temp.burst_time;
 
-		time = time_burst_sum + lastArrival_time;
-
+		int time_temp = time_burst_sum + lastArrival_time;
+		if (time < time_temp) {
+			time = time_burst_sum + lastArrival_time;
+		}
 		origin_queue->pop();
 	}
 
@@ -239,9 +241,10 @@ int rr_process(T* origin_queue, T* table_queue, int quantum) {
 			lastArrival_time = temp.arrival_time;
 
 		time_burst_sum += temp.burst_time;
-
-		time = time_burst_sum + lastArrival_time;
-
+		int time_temp = time_burst_sum + lastArrival_time;
+		if (time < time_temp) {
+			time = time_burst_sum + lastArrival_time;
+		}
 		origin_queue->pop();
 	}
 
@@ -334,9 +337,10 @@ int spn_process(T* origin_queue, T* table_queue) {						// table큐는 입력받은 순
 			lastArrival_time = temp.arrival_time;
 
 		time_burst_sum += temp.burst_time;
-
-		time = time_burst_sum + lastArrival_time;
-
+		int time_temp = time_burst_sum + lastArrival_time;
+		if (time < time_temp) {
+			time = time_burst_sum + lastArrival_time;
+		}
 		origin_queue->pop();
 	}
 	// time은 t변수 time초까지 카운트 한다.
@@ -416,9 +420,10 @@ int srtn_process(T* origin_queue, T* table_queue) {
 			lastArrival_time = temp.arrival_time;
 
 		time_burst_sum += temp.burst_time;
-
-		time = time_burst_sum + lastArrival_time;
-
+		int time_temp = time_burst_sum + lastArrival_time;
+		if (time < time_temp) {
+			time = time_burst_sum + lastArrival_time;
+		}
 		origin_queue->pop();
 	}
 	//printf("time : %d\n", time);
@@ -516,7 +521,10 @@ int hrrn_process(T* origin_queue, T* table_queue) {
 			lastArrival_time = temp.arrival_time;
 
 		time_burst_sum += temp.burst_time;
-		time = time_burst_sum + lastArrival_time;
+		int time_temp = time_burst_sum + lastArrival_time;
+		if (time < time_temp) {
+			time = time_burst_sum + lastArrival_time;
+		}
 		origin_queue->pop();
 	}
 
@@ -632,8 +640,10 @@ int dice_process(T* origin_queue, T* table_queue) {
 
 		time_burst_sum += temp.burst_time;
 
-		time = time_burst_sum + lastArrival_time;
-
+		int time_temp = time_burst_sum + lastArrival_time;
+		if (time < time_temp) {
+			time = time_burst_sum + lastArrival_time;
+		}
 		origin_queue->pop();
 	}
 
