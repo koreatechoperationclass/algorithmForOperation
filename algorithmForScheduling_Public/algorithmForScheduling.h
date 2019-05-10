@@ -273,7 +273,7 @@ int rr_process(T* origin_queue, T* table_queue, int quantum) {
 			}
 		}
 		if (!processor.isNull()) {
-			if (count == quantum) {
+			if (count >= quantum) {
 				if (!memory_queue.empty()) {
 					Process temp_process = memory_queue.front();
 					memory_queue.pop();
